@@ -118,3 +118,17 @@ INSERT INTO kurlar (kullanici_id, para_birimi, deger) VALUES
   (1, 'USD', 41.0000),
   (1, 'EUR', 48.0000),
   (1, 'GBP', 55.0000);
+
+-- -----------------------------------------------------------------------------
+--  UYGULAMA KULLANICISI
+--  Uygulama root ile bağlanmamalı: root'un tablo silme, kullanıcı açma gibi
+--  yetkileri var ve uygulamanın bunlara ihtiyacı yok. Bu yüzden yalnızca bu
+--  veritabanında veri okuyup yazabilen ayrı bir kullanıcı açıyoruz.
+--  Buna EN AZ YETKİ İLKESİ denir.
+--
+--  Aşağıdaki şifreyi kendi şifrenle değiştir ve AYNISINI ayarlar.php dosyasına
+--  yaz. ayarlar.php depoya gönderilmez (.gitignore içinde).
+-- -----------------------------------------------------------------------------
+CREATE USER IF NOT EXISTS 'defter_app'@'localhost' IDENTIFIED BY 'BURAYA_KENDI_SIFRENIZI_YAZIN';
+GRANT SELECT, INSERT, UPDATE, DELETE ON gelir_defteri.* TO 'defter_app'@'localhost';
+FLUSH PRIVILEGES;
