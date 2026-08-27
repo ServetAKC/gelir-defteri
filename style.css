@@ -1,0 +1,641 @@
+/* ============================================================================
+   1) RENK VE ÖLÇÜ DEĞİŞKENLERİ (CSS custom properties)
+   ----------------------------------------------------------------------------
+   Aşağıdaki "--isim: değer" satırlarının her biri bir değişkendir. Sayfanın
+   geri kalanında rengi doğrudan yazmak yerine var(--isim) diye çağırıyoruz.
+   Faydası: tek yerden değiştirince her yer değişir ve koyu tema için sadece
+   bu değişkenleri yeniden tanımlamak yetiyor, tek tek kuralları kopyalamıyoruz.
+
+   Tema üç durumda olabilir:
+     a) Kullanıcı "açık" seçmiş  -> kök elemanda data-theme="light" yazar
+     b) Kullanıcı "koyu" seçmiş  -> data-theme="dark" yazar
+     c) Kullanıcı bir şey seçmemiş (varsayılan) -> hiçbir işaret yok, o zaman
+        işletim sisteminin tercihi olan prefers-color-scheme geçerlidir.
+   Bu yüzden aşağıda üç blok var: normal :root (açık tema), medya sorgusu
+   (sistem koyuysa) ve data-theme="dark" (kullanıcı elle koyu seçtiyse).
+============================================================================ */
+:root {
+  --ground: #f1f4f2;        /* sayfanın zemini */
+  --surface: #ffffff;       /* kartların/panellerin yüzeyi */
+  --line: #e0e6e2;          /* çerçeve çizgileri */
+  --line-soft: #eef2ef;     /* tablo satır ayraçları gibi daha silik çizgiler */
+  --ink: #121a17;           /* ana yazı rengi */
+  --ink-soft: #5c6a63;      /* ikincil yazı (etiket, açıklama) */
+  --accent: #0f6b57;        /* vurgu rengi: butonlar, odak halkası */
+  --accent-soft: #e2efeb;   /* vurgunun çok açık tonu: seçili kart zemini */
+  --danger: #b5372f;        /* hata / silme rengi */
+  --danger-soft: #fbeceb;
+
+  /* Kategori renkleri. Sıra sabittir: 1. kategori --cat-1, 2. kategori --cat-2...
+     Bu 8 ton renk körlüğü simülasyonundan geçirilip yan yana ayırt edilebildiği
+     doğrulandı. 9. ve sonrası nötr griye (--cat-9) düşer, uydurma renk üretmeyiz. */
+  --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a;
+  --cat-4: #eda100; --cat-5: #e87ba4; --cat-6: #008300;
+  --cat-7: #4a3aa7; --cat-8: #e34948; --cat-9: #737d88;
+
+  --shadow: 0 1px 2px rgba(14, 30, 24, .05), 0 8px 20px rgba(14, 30, 24, .05);
+
+  /* Yazı tipi yığınları. İlk yazı tipi yüklenemezse sıradakine düşer. */
+  --sans: "IBM Plex Sans", system-ui, "Segoe UI", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+/* Sistem koyu temadaysa VE kullanıcı açık temayı elle seçmediyse: */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0d1211;
+    --surface: #141a18;
+    --line: #232d29;
+    --line-soft: #1b2320;
+    --ink: #e8efeb;
+    --ink-soft: #94a29b;
+    --accent: #56c5a4;
+    --accent-soft: #16302a;
+    --danger: #ff8279;
+    --danger-soft: #2e1a19;
+    /* Aynı 8 renk, koyu zeminde okunacak şekilde yeniden ayarlanmış tonları. */
+    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70;
+    --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300;
+    --cat-7: #9085e9; --cat-8: #e66767; --cat-9: #8d97a3;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px rgba(0, 0, 0, .28);
+  }
+}
+
+/* Kullanıcı elle koyu temayı seçtiyse (sistem ne derse desin): */
+:root[data-theme="dark"] {
+  --ground: #0d1211;
+  --surface: #141a18;
+  --line: #232d29;
+  --line-soft: #1b2320;
+  --ink: #e8efeb;
+  --ink-soft: #94a29b;
+  --accent: #56c5a4;
+  --accent-soft: #16302a;
+  --danger: #ff8279;
+  --danger-soft: #2e1a19;
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70;
+  --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300;
+  --cat-7: #9085e9; --cat-8: #e66767; --cat-9: #8d97a3;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px rgba(0, 0, 0, .28);
+}
+
+/* ============================================================================
+   2) GENEL TEMEL KURALLAR
+============================================================================ */
+
+/* border-box: bir kutuya genişlik verdiğimizde padding ve border o genişliğin
+   İÇİNDE sayılır. Olmazsa 100px + 20px padding = 120px olur, hesap şaşar. */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);   /* zemini mutlaka biz boyuyoruz; şeffaf bırakırsak
+                                  sayfayı gösteren kabuk kendi rengini sızdırır */
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* İçeriği ortalayan kapsayıcı: en fazla 1140px, ekran darsa kenarlardan 40px boşluk. */
+.wrap { width: min(1140px, 100% - 40px); margin-inline: auto; }
+
+/* Ekranda görünmeyen ama ekran okuyucunun okuduğu metin (etiketler için). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Klavyeyle gezen kullanıcı için görünür odak halkası. :focus-visible sadece
+   klavye ile gelindiğinde çalışır, fareyle tıklayınca halka çıkmaz. */
+:where(a, button, input, select):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* HTML'deki hidden özniteliği bazı display kurallarıyla ezilebiliyor;
+   !important ile "gizle dediysem gizle" diyoruz. JavaScript tarafında
+   göster/gizle işini hep .hidden = true/false ile yapıyoruz. */
+[hidden] { display: none !important; }
+
+/* ============================================================================
+   3) ÜST BAR: logo + kur ayarları düğmesi
+============================================================================ */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar__inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding: 14px 0;
+}
+.mark {
+  font-family: var(--mono); font-weight: 600; font-size: 13px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+}
+/* Logodaki kare içindeki ₺ işareti. \20BA = ₺ karakterinin unicode numarası. */
+.mark::before {
+  content: "\20BA"; display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: 7px;
+  background: var(--accent); color: var(--surface);
+  font-size: 15px; letter-spacing: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   ÜÇ NOKTA MENÜSÜ
+   Menü, tetikleyen düğmenin altına yapışsın diye ikisini birden saran kutuya
+   position: relative veriyoruz. Menünün position: absolute'u bu kutuya göre
+   hesaplanır; sayfanın tamamına göre değil.
+---------------------------------------------------------------------------- */
+.menu-wrap { position: relative; }
+
+.dots {
+  width: 34px; height: 34px; flex: none;
+  font: inherit; font-size: 19px; line-height: 1;
+  color: var(--ink-soft); background: var(--ground);
+  border: 1px solid var(--line); border-radius: 9px; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.dots:hover { color: var(--ink); border-color: var(--ink-soft); }
+.dots svg { width: 18px; height: 18px; display: block; margin: 0 auto; }
+.dots[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+
+.menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
+  min-width: 232px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 11px; box-shadow: 0 12px 30px rgba(0, 0, 0, .18);
+}
+.menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 10px; border: 0; border-radius: 8px;
+  font: inherit; font-size: 14px; text-align: left;
+  color: var(--ink); background: transparent; cursor: pointer;
+}
+.menu button:hover { background: var(--ground); }
+.menu button svg { width: 16px; height: 16px; flex: none; color: var(--ink-soft); }
+.menu button.is-danger { color: var(--danger); }
+.menu button.is-danger:hover { background: var(--danger-soft); }
+.menu button.is-danger svg { color: currentColor; }
+.menu button:disabled { opacity: .45; cursor: not-allowed; }
+.menu button:disabled:hover { background: transparent; }
+.menu__sep { height: 1px; margin: 5px 4px; background: var(--line); }
+/* Menü satırının sağındaki küçük etiket (seçili para birimi gibi). */
+.menu__tag {
+  margin-left: auto; font-family: var(--mono); font-size: 12px;
+  color: var(--ink-soft); letter-spacing: .04em;
+}
+
+/* ============================================================================
+   4) KUR PENCERESİ (kendi yaptığımız pencere)
+   ----------------------------------------------------------------------------
+   Tarayıcının hazır <dialog> etiketini KULLANMIYORUZ. Sebep: bu sayfa
+   kısıtlanmış (sandbox) bir çerçevede gösterilebiliyor ve orada modal pencere
+   açan hazır özellikler (alert, confirm, dialog.showModal) engellenir.
+   Bu yüzden pencereyi normal <div>'lerle kendimiz kuruyoruz; her yerde çalışır.
+============================================================================ */
+.overlay {                        /* ekranı kaplayan yarı saydam perde */
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(8, 18, 14, .5);
+  display: grid; place-items: center; padding: 20px;
+}
+.modal {
+  width: min(430px, 100%);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .3);
+  padding: 20px;
+  animation: modal-in .16s ease-out;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+.modal__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.modal__title {
+  margin: 0; font-family: var(--mono); font-size: 12px; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+}
+.modal__close {
+  width: 30px; height: 30px; line-height: 1; font-size: 17px; flex: none;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--ink-soft); cursor: pointer;
+}
+.modal__close:hover { color: var(--ink); border-color: var(--ink-soft); }
+.modal__section { margin-top: 16px; }
+.modal__section-title {
+  margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--ink-soft);
+}
+.modal--wide { width: min(640px, 100%); }
+.modal__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* Yedek metninin durduğu kutu. Tek tip yazı (mono) ve satırlar kırılmadan
+   dursun ki metin tabloya benzesin, gözle okunabilsin. */
+.code-box {
+  width: 100%; min-height: 170px; max-height: 40vh;
+  padding: 11px 12px; resize: vertical;
+  font-family: var(--mono); font-size: 12px; line-height: 1.6;
+  color: var(--ink); background: var(--ground);
+  border: 1px solid var(--line); border-radius: 9px;
+  white-space: pre; overflow: auto;
+}
+
+/* Dosya seçici düğmesi aslında bir <label>; düğme gibi görünsün diye
+   hizalamasını burada düzeltiyoruz. */
+label.btn { display: inline-flex; align-items: center; }
+
+/* ============================================================================
+   5) ÖZET KARTLARI (bugün / bu ay / toplam)
+============================================================================ */
+.stats { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 24px 0 16px; }
+.tile {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow); padding: 16px 18px;
+}
+.tile--lead { background: var(--accent-soft); border-color: transparent; }  /* "Bugün" kartı vurgulu */
+.tile__label {
+  margin: 0 0 8px; font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+}
+.tile__value {
+  margin: 0; font-family: var(--mono); font-weight: 500;
+  /* Kart daraldıkça yazı da küçülsün: en az 18px, en çok 26px. */
+  font-size: clamp(18px, 2.2vw, 26px);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;   /* rakamların hepsi aynı genişlikte olsun,
+                                           alt alta gelince kayma olmasın */
+  text-wrap: balance;
+}
+.tile__meta { margin: 6px 0 0; font-size: 13px; color: var(--ink-soft); }
+
+/* ============================================================================
+   6) SAYFA YERLEŞİMİ: solda dar sütun (form + kategoriler), sağda geniş sütun
+============================================================================ */
+.layout { display: grid; gap: 16px; grid-template-columns: 322px minmax(0, 1fr); align-items: start; padding-bottom: 26px; }
+/* min-width: 0 -> sütun, içindeki uzun içerik yüzünden şişmesin;
+   üstteki üç kartla aynı genişlikte kalsın. */
+.col { display: grid; gap: 16px; min-width: 0; }
+.panel { min-width: 0; }
+.panel {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow); padding: 18px;
+}
+.panel__title {
+  margin: 0; font-family: var(--mono); font-size: 12px; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+}
+.panel__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* ----------------------------------------------------------------------------
+   AY ŞERİDİ
+   Normal panelden ince: dolgusu küçük, içindekiler tek satır. Dar ekranda
+   satır kırmak yerine yatay kayıyor (overflow-x: auto), böylece 12 ay hep
+   tek sırada kalıyor ve şerit incecik duruyor.
+---------------------------------------------------------------------------- */
+.panel--slim { padding: 7px 9px; }
+.monthbar { display: flex; align-items: center; gap: 8px; overflow-x: auto; }
+.monthbar::-webkit-scrollbar { height: 6px; }
+.monthbar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+.mb__nav {
+  width: 26px; height: 26px; flex: none; line-height: 1;
+  font: inherit; font-size: 16px; color: var(--ink-soft);
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 7px; cursor: pointer;
+}
+.mb__nav:hover { color: var(--ink); border-color: var(--ink-soft); }
+.mb__year {
+  flex: none; min-width: 42px; text-align: center;
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.mb__months { display: flex; gap: 3px; flex: none; }
+.mb__chip {
+  padding: 5px 9px; flex: none;
+  font: inherit; font-family: var(--mono); font-size: 12.5px;
+  color: var(--ink-soft); background: transparent;
+  border: 1px solid transparent; border-radius: 7px; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.mb__chip:hover { background: var(--ground); color: var(--ink); }
+/* Seçili ay */
+.mb__chip.is-on { background: var(--accent); color: var(--surface); }
+/* O yıl içinde hiç kaydı olmayan ay: soluk ama yine de tıklanabilir. */
+.mb__chip.is-empty { opacity: .38; }
+.mb__chip.is-empty.is-on { opacity: 1; }
+
+.mb__all {
+  margin-left: auto; flex: none;
+  padding: 5px 11px;
+  font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--ink-soft); background: transparent;
+  border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+}
+.mb__all:hover { color: var(--ink); border-color: var(--ink-soft); }
+.mb__all.is-on { background: var(--accent); color: var(--surface); border-color: transparent; }
+
+/* ============================================================================
+   7) FORM ELEMANLARI
+============================================================================ */
+form { display: grid; gap: 13px; margin-top: 14px; }
+.field { display: grid; gap: 5px; }
+label { font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+.label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+/* Tutar kutusu geniş, para birimi kutusu 96px: yan yana iki sütun. */
+.amount-row { display: grid; grid-template-columns: 1fr 96px; gap: 8px; }
+
+input, select {
+  width: 100%; padding: 9px 11px; font: inherit; color: var(--ink);
+  background: var(--ground); border: 1px solid var(--line);
+  border-radius: 9px; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+input[type="number"], input[type="date"] { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Sayı kutularındaki yukarı/aşağı okları kaldırıyoruz: kimse tutarı kuruş kuruş
+   tıklayarak artırmaz, ok tuşlarına yanlışlıkla basıp tutarı bozmak ise kolay. */
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+input:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
+select { appearance: none; cursor: pointer; }   /* tarayıcının kendi okunu gizle */
+.amount-row select { font-family: var(--mono); font-size: 14px; padding-inline: 9px; }
+.hint { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+
+/* Tarih satırı: metin kutusu + takvim düğmesi.
+   Gerçek tarih kutusu (.date-native) görünmez ama sayfada durur; display:none
+   olsaydı takvimi açılamazdı, o yüzden 1 piksellik saydam bir kutu bırakıyoruz. */
+.date-row { position: relative; display: grid; grid-template-columns: 1fr 40px; gap: 8px; }
+.date-row input[type="text"] { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.date-btn {
+  display: grid; place-items: center;
+  background: var(--ground); border: 1px solid var(--line);
+  border-radius: 9px; color: var(--ink-soft); cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.date-btn:hover { color: var(--accent); border-color: var(--accent); }
+.date-btn svg { width: 17px; height: 17px; }
+.date-native {
+  position: absolute; right: 44px; bottom: 0;
+  width: 1px; height: 1px; padding: 0; margin: 0;
+  opacity: 0; border: 0; pointer-events: none;
+}
+
+/* Onay penceresindeki açıklama metni */
+.confirm__text { margin: 14px 0 0; font-size: 14.5px; color: var(--ink); }
+.btn--danger { background: var(--danger); color: #fff; }
+.btn--danger:hover { filter: brightness(1.08); }
+
+.btn {
+  font: inherit; font-weight: 600; border: 1px solid transparent;
+  border-radius: 9px; padding: 10px 14px; cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn--primary { background: var(--accent); color: var(--surface); }
+.btn--primary:hover:not(:disabled) { filter: brightness(1.09); }
+.btn--primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn--ghost { background: transparent; color: var(--ink-soft); border-color: var(--line); padding: 8px 12px; font-size: 14px; }
+.btn--ghost:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+.btn--ghost:disabled { opacity: .45; cursor: not-allowed; }
+.btn--link {
+  background: transparent; border: 0; padding: 0;
+  color: var(--accent); font-size: 13px; font-weight: 600;
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+.error { margin: 0; padding: 9px 11px; font-size: 13px; color: var(--danger); background: var(--danger-soft); border-radius: 9px; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.tools select { width: auto; min-width: 160px; padding-block: 8px; font-size: 14px; }
+.list-note {
+  margin: 12px 0 0; font-family: var(--mono); font-size: 12.5px;
+  color: var(--ink-soft); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ============================================================================
+   8) KATEGORİ ROZETLERİ
+============================================================================ */
+.cats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.cat {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 8px 6px 11px; border: 1px solid var(--line);
+  border-radius: 999px; font-size: 14px; font-weight: 500; background: var(--surface);
+}
+.cat__dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.cat__count { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.cat__del {
+  width: 20px; height: 20px; line-height: 1; font-size: 14px; flex: none;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--ink-soft); cursor: pointer;
+}
+.cat__del:hover { background: var(--danger-soft); color: var(--danger); }
+/* Kesikli çerçeveli "+ Kategori ekle" rozeti: tıklanabilir olduğu görünsün diye. */
+.cat--add {
+  border-style: dashed; color: var(--accent); cursor: pointer;
+  padding: 6px 12px; font-weight: 600; font-family: inherit;
+}
+.cat--add:hover { border-color: var(--accent); background: var(--accent-soft); }
+.cat-form { display: flex; gap: 8px; margin-top: 12px; }
+.cat-form input { flex: 1; }
+.suggest { margin-top: 12px; font-size: 13px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.suggest__btn {
+  font: inherit; font-size: 13px; font-weight: 500; color: var(--ink);
+  background: var(--ground); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 11px; cursor: pointer;
+}
+.suggest__btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ============================================================================
+   9) KUR SATIRLARI (pencerenin içinde)
+============================================================================ */
+.rates { display: grid; gap: 9px; margin-top: 4px; }
+.rate-row { display: grid; grid-template-columns: 1fr 130px; gap: 10px; align-items: center; }
+.rate-row__label { font-family: var(--mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.rate-row input { padding: 7px 10px; font-family: var(--mono); font-size: 13.5px; text-align: right; }
+
+/* ============================================================================
+   10) KAYIT TABLOSU
+============================================================================ */
+.table-wrap { overflow-x: auto; margin-top: 10px; }  /* dar ekranda tablo yatay kaysın,
+                                                        sayfanın tamamı kaymasın */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th {
+  text-align: left; padding: 8px 10px; white-space: nowrap;
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+}
+td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--ground); }
+.c-date { font-family: var(--mono); font-size: 13px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.c-note { color: var(--ink-soft); }
+.c-amount { font-family: var(--mono); font-weight: 500; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.c-amount small { display: block; font-weight: 400; font-size: 12px; color: var(--ink-soft); }  /* orijinal döviz tutarı */
+.c-action { width: 1%; text-align: right; white-space: nowrap; }
+.c-action .row-btns { display: inline-flex; gap: 6px; }
+th.c-amount { text-align: right; }
+
+/* Düzenlenmekte olan satır vurgulu kalsın ki hangi kaydı değiştirdiğiniz belli olsun. */
+tbody tr.is-editing { background: var(--accent-soft); }
+tbody tr.is-editing:hover { background: var(--accent-soft); }
+.chip { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; white-space: nowrap; }
+.chip__dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.del {
+  width: 30px; height: 30px; line-height: 1; font-size: 16px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--ink-soft); cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.del:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+
+/* Düzenle düğmesi silme düğmesiyle aynı ölçüde, ama vurgu renginde. */
+.edit { font-size: 14px; }
+.edit:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+/* ============================================================================
+   11) PASTA (HALKA) GRAFİK
+============================================================================ */
+.pie-wrap { display: flex; gap: 30px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
+/* aspect-ratio: 1 -> yüksekliği genişliğine eşitle, yani hep kare kalsın. */
+.pie { position: relative; width: 300px; max-width: 100%; aspect-ratio: 1; flex: none; }
+.pie svg { display: block; width: 100%; height: 100%; }
+.pie__slice { transition: opacity .15s; cursor: default; }
+.pie__slice.is-dim { opacity: .28; }     /* fare bir dilimin üstündeyken diğerleri soluyor */
+/* Halkanın ortasındaki yazı: SVG'nin üstüne mutlak konumla oturuyor.
+   pointer-events: none -> fare bu yazıya takılmasın, altındaki dilimi görsün. */
+.pie__center {
+  position: absolute; inset: 0; display: grid; place-content: center;
+  text-align: center; pointer-events: none;
+  /* Halkanın iç boşluğuna sığan en geniş kare, çapın ~%38'i kadar.
+     Yazı tam ortada, halkanın en geniş yerinde durduğu için kenarlardan %24
+     boşluk bırakmak yetiyor; daha fazlası yazıyı gereksiz yere sıkıştırırdı. */
+  padding: 0 24%;
+}
+.pie__center-label {
+  margin: 0 0 3px; font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pie__center-value {
+  margin: 0; font-family: var(--mono); font-size: 25px; font-weight: 600;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  /* Kaçacak yer kalmazsa satır kırılsın, halkanın dışına taşmasın. */
+  overflow-wrap: anywhere;
+}
+.legend { flex: 1; min-width: 240px; display: grid; gap: 2px; align-content: center; }
+.legend__row {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline;
+  padding: 6px 8px; border-radius: 8px; transition: background .15s;
+}
+.legend__row.is-active { background: var(--ground); }
+/* min-width: 0 olmadan ızgara hücresi içeriği kadar genişler ve tutarı dışarı iter;
+   bu satır sayesinde uzun kategori adı üç nokta ile kısalır. */
+.legend__row .chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.legend__val {
+  font-family: var(--mono); font-size: 13.5px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+.legend__val strong { color: var(--ink); font-weight: 500; }
+
+/* ============================================================================
+   12) BOŞ DURUM, ALT BİLGİ, GERİ AL ŞERİDİ
+============================================================================ */
+.empty { padding: 38px 12px; text-align: center; }
+.empty__title { margin: 0 0 4px; font-weight: 600; }
+.empty__text { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.foot { padding: 0 0 28px; text-align: center; font-size: 12.5px; color: var(--ink-soft); }
+.foot p { margin: 0; }
+
+/* Silme sonrası ekranın altında beliren "geri al" şeridi. */
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px;
+  max-width: calc(100% - 32px);
+  padding: 10px 12px 10px 16px;
+  background: var(--ink); color: var(--surface);
+  border-radius: 10px; box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+  font-size: 14px; z-index: 20;
+}
+.toast__text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toast__btn {
+  font: inherit; font-weight: 600; color: var(--surface);
+  background: transparent; border: 1px solid currentColor;
+  border-radius: 8px; padding: 5px 11px; cursor: pointer; flex: none;
+}
+.toast__btn:hover { background: rgba(255, 255, 255, .14); }
+
+/* ============================================================================
+   13) EKRAN GENİŞLİĞİNE GÖRE UYARLAMA
+   ----------------------------------------------------------------------------
+   Kural: dar ekranda iki sütun tek sütuna iner, tablo da kart listesine dönüşür.
+============================================================================ */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .wrap { width: calc(100% - 28px); }
+  .stats { grid-template-columns: 1fr; margin-top: 18px; }
+  .tile__value { font-size: 24px; }
+  .panel { padding: 15px; }
+  .tools { width: 100%; }
+  .tools select { flex: 1; min-width: 0; }
+  .pie-wrap { justify-content: center; gap: 18px; }
+  .pie { width: min(280px, 82vw); }
+
+  /* -------------------------------------------------------------------------
+     TABLODAN KARTA
+     Dar ekranda beş sütunlu tablo okunmaz. Bu yüzden başlık satırını gizleyip
+     her satırı kendi kartına çeviriyoruz. Kart içinde küçük bir ızgara var:
+
+        [ tarih        ]  [ tutar   ]
+        [ kategori     ]  [ (aynı)  ]
+        [ açıklama - tam genişlik   ]
+        [           düzenle/sil     ]   <- sadece düzenleme modunda
+
+     Solda kategorinin renginde ince bir şerit var: hangi kategori olduğu
+     karta bakar bakmaz anlaşılsın diye. Rengi JavaScript her satıra
+     --row-color değişkeni olarak yazıyor.
+  ------------------------------------------------------------------------- */
+  thead { display: none; }
+  table, tbody { display: block; width: 100%; }
+
+  tr {
+    display: grid; width: 100%;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 2px 12px;
+    padding: 12px 13px;
+    margin-bottom: 10px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--row-color, var(--line));
+    border-radius: 10px;
+  }
+  tbody tr:hover { background: transparent; }
+  tbody tr.is-editing { background: var(--accent-soft); }
+
+  td { display: block; border: 0; padding: 0; }
+  td:empty { display: none; }               /* açıklama boşsa yer kaplamasın */
+
+  .c-date { grid-column: 1; font-size: 12.5px; }
+  .c-cat  { grid-column: 1; margin-top: 2px; }
+  .c-note { grid-column: 1 / -1; margin-top: 4px; font-size: 13.5px; }
+
+  /* Tutar sağda, iki satır boyunca dikeyde ortalanmış ve büyük. */
+  .c-amount {
+    grid-column: 2; grid-row: 1 / span 2;
+    align-self: center; text-align: right; font-size: 18px;
+  }
+  .c-amount small { display: block; margin-top: 2px; font-size: 12px; }
+
+  /* Düzenleme modundaki düğmeler kartın altına, sağa yaslanır. */
+  .c-action {
+    grid-column: 1 / -1; width: auto;
+    justify-self: end; margin-top: 8px;
+  }
+}
+
+/* Kullanıcı "hareketi azalt" demişse tüm geçişleri kapat. */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

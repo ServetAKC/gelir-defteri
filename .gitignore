@@ -1,0 +1,13 @@
+# Yedek dosyaları (uygulamanın ürettiği .txt defter yedekleri)
+gelir-defteri-*.txt
+
+# Editör / işletim sistemi artıkları
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# Loglar
+*.log
