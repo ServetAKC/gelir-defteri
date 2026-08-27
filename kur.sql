@@ -130,5 +130,8 @@ INSERT INTO kurlar (kullanici_id, para_birimi, deger) VALUES
 --  yaz. ayarlar.php depoya gönderilmez (.gitignore içinde).
 -- -----------------------------------------------------------------------------
 CREATE USER IF NOT EXISTS 'defter_app'@'localhost' IDENTIFIED BY 'BURAYA_KENDI_SIFRENIZI_YAZIN';
+-- ALTER da yaziyoruz: kullanici zaten varsa CREATE hicbir sey yapmaz ve eski
+-- sifre gecerli kalirdi. Bu satir sifreyi her durumda gunceller.
+ALTER USER 'defter_app'@'localhost' IDENTIFIED BY 'BURAYA_KENDI_SIFRENIZI_YAZIN';
 GRANT SELECT, INSERT, UPDATE, DELETE ON gelir_defteri.* TO 'defter_app'@'localhost';
 FLUSH PRIVILEGES;

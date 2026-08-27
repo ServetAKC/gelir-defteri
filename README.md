@@ -6,6 +6,9 @@ Kayıtlar kategori ve para birimiyle tutulur, özet ve grafiklerle raporlanır.
 **Yığın:** PHP 8 · MySQL (MariaDB) · Vanilla JavaScript · Apache (XAMPP)
 Çerçeve (framework) ve dış kütüphane kullanılmadı.
 
+> **Kurmak için:** [KURULUM.md](KURULUM.md) — adım adım, hiç bilmeyen biri için.
+> Aşağıdaki özet kurulum, ortamı zaten hazır olanlar içindir.
+
 ---
 
 ## Özellikler
