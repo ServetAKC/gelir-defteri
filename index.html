@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gelir Defteri</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ==========================================================================
+       ÜST BAR
+       Solda logo, sağda kur penceresini açan düğme. Düğmenin içindeki metin
+       (fxBtnLabel) o an seçili para biriminin kodunu gösterir, JavaScript günceller.
+  =========================================================================== -->
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <div class="mark">Gelir Defteri</div>
+
+      <!-- Sağ üstteki üç nokta menüsü: yedekleme ve para birimi ayarları burada.
+           .menu-wrap konumlandırma içindir: menü bu kutunun altına yapışır. -->
+      <div class="menu-wrap">
+        <button type="button" class="dots" id="topDots" aria-haspopup="menu" aria-expanded="false"
+                aria-label="Ayarlar menüsü" title="Ayarlar">
+          <!-- Üç yatay çizgi (hamburger) simgesi. -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" aria-hidden="true">
+            <path d="M4 7h16"></path>
+            <path d="M4 12h16"></path>
+            <path d="M4 17h16"></path>
+          </svg>
+        </button>
+
+        <div class="menu" id="topMenu" role="menu" hidden>
+          <!-- Yedekleme penceresini açar: defteri düz metin olarak dışa/içe aktarma. -->
+          <button type="button" role="menuitem" id="backupBtn">
+            <!-- Aşağı ok + zemin çizgisi: "indir/kaydet" simgesi.
+                 currentColor = yazı rengini kullan, tema değişince simge de değişsin. -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3v12"></path>
+              <path d="M7 11l5 5 5-5"></path>
+              <path d="M4 20h16"></path>
+            </svg>
+            Yedek al / geri yükle
+          </button>
+
+          <button type="button" role="menuitem" id="fxBtn">
+            <!-- İki yönlü ok: para birimi çevrimini anlatıyor. -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 8h15l-3.5-3.5"></path>
+              <path d="M20 16H5l3.5 3.5"></path>
+            </svg>
+            Para birimi ve kurlar
+            <span class="menu__tag" id="fxBtnLabel">TRY</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ========================================================================
+         ÖZET KARTLARI
+         Üç sayı: bugün, bu ay ve toplam gelir. Hepsi seçili para biriminde.
+    ========================================================================= -->
+    <section class="stats" aria-label="Özet">
+      <article class="tile tile--lead">
+        <p class="tile__label">Bugün</p>
+        <p class="tile__value" id="statToday">&#8378;0,00</p>
+        <p class="tile__meta" id="statTodayMeta">0 kayıt</p>
+      </article>
+      <article class="tile">
+        <p class="tile__label">Bu Ay</p>
+        <p class="tile__value" id="statMonth">&#8378;0,00</p>
+        <p class="tile__meta" id="statMonthMeta">—</p>
+      </article>
+      <article class="tile">
+        <p class="tile__label">Toplam Gelir</p>
+        <p class="tile__value" id="statTotal">&#8378;0,00</p>
+        <p class="tile__meta" id="statTotalMeta">0 kayıt</p>
+      </article>
+    </section>
+
+    <div class="layout">
+      <!-- ====================== SOL SÜTUN ================================== -->
+      <div class="col">
+
+        <!-- Yeni gelir formu. novalidate = tarayıcının kendi uyarı balonlarını
+             kapat, kontrolü biz yapıp kendi hata mesajımızı gösterelim. -->
+        <section class="panel" id="formPanel">
+          <div class="panel__head">
+            <!-- Bu başlık düzenleme modunda "Kaydı Düzenle" olur. -->
+            <h2 class="panel__title" id="formTitle">Gelir Ekle</h2>
+            <button type="button" class="btn--link" id="cancelEdit" hidden>Düzenlemeyi bırak</button>
+          </div>
+          <form id="incomeForm" novalidate>
+            <div class="field">
+              <label for="amount">Tutar</label>
+              <div class="amount-row">
+                <input type="number" id="amount" step="0.01" min="0.01" max="999999999.99"
+                       inputmode="decimal" placeholder="0,00" required>
+                <label class="sr-only" for="currency">Para birimi</label>
+                <select id="currency"></select>   <!-- seçenekleri JavaScript dolduruyor -->
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="category">Kategori</label>
+              <select id="category" required></select>
+              <p class="hint" id="noCatHint" hidden>Kayıt yapmak için önce bir kategori ekleyin.</p>
+            </div>
+
+            <!-- Tarih alanı.
+                 Tarayıcının kendi <input type="date"> kutusu tarihi işletim
+                 sisteminin diline göre yazar (08/27/2026 gibi) ve bunu sayfadan
+                 değiştiremeyiz. Türkçe arayüzle tutarlı olsun diye görünen kutu
+                 düz metin: gg.aa.yyyy. Takvimden seçmek isteyenler için yanındaki
+                 düğme, gizli duran gerçek tarih kutusunun takvimini açar. -->
+            <div class="field">
+              <label for="date">Tarih</label>
+              <div class="date-row">
+                <input type="text" id="date" inputmode="numeric" autocomplete="off"
+                       placeholder="gg.aa.yyyy" maxlength="10" required>
+                <button type="button" class="date-btn" id="dateBtn" aria-label="Takvimden seç" title="Takvimden seç">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                    <path d="M3 10h18M8 3v4M16 3v4"></path>
+                  </svg>
+                </button>
+                <!-- Gerçek tarih kutusu: görünmez, sadece takvim açmak için var. -->
+                <input type="date" id="datePicker" class="date-native" tabindex="-1" aria-hidden="true">
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="note">Açıklama <span style="font-weight:400">(isteğe bağlı)</span></label>
+              <input type="text" id="note" maxlength="80" placeholder="Örn. Nakit satış">
+            </div>
+
+            <p class="error" id="formError" role="alert" hidden></p>
+            <button type="submit" class="btn btn--primary" id="submitBtn">Geliri Kaydet</button>
+          </form>
+        </section>
+
+        <!-- Kategori yönetimi: rozetler + ekleme formu + ilk kullanımda öneriler -->
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Kategoriler</h2>
+            <span class="cat__count" id="catCount"></span>
+          </div>
+
+          <div class="cats" id="catList"></div>   <!-- rozetleri JavaScript üretir -->
+
+          <form class="cat-form" id="catForm" hidden>
+            <label class="sr-only" for="catName">Kategori adı</label>
+            <input type="text" id="catName" maxlength="24" placeholder="Kategori adı" autocomplete="off">
+            <button type="submit" class="btn btn--primary" style="padding:9px 13px">Ekle</button>
+            <button type="button" class="btn btn--ghost" id="catCancel">Vazgeç</button>
+          </form>
+          <p class="error" id="catError" role="alert" hidden></p>
+
+          <!-- Hazır kategoriler: tek tıkla eklenen 3 genel seçenek.
+               Zaten eklenmiş olanlar listeden düşer; hepsi eklenince satır gizlenir. -->
+          <div class="suggest" id="suggest" hidden>
+            <span>Hazır:</span>   <!-- düğmeleri JavaScript ekler -->
+          </div>
+        </section>
+      </div>
+
+      <!-- ====================== SAĞ SÜTUN ================================== -->
+      <div class="col">
+
+        <!-- İnce ay şeridi: yıl okları + 12 ay + "Tümü".
+             Seçilen ay yalnızca alttaki kayıt listesini süzer. -->
+        <section class="panel panel--slim monthbar" aria-label="Ay seçimi">
+          <button type="button" class="mb__nav" id="prevYear" aria-label="Önceki yıl" title="Önceki yıl">‹</button>
+          <span class="mb__year" id="yearLabel">—</span>
+          <button type="button" class="mb__nav" id="nextYear" aria-label="Sonraki yıl" title="Sonraki yıl">›</button>
+
+          <div class="mb__months" id="monthList"></div>   <!-- 12 ay düğmesini JavaScript üretir -->
+
+          <button type="button" class="mb__all" id="allMonths">Tümü</button>
+        </section>
+
+        <!-- Kayıt listesi + kategori filtresi -->
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Gelir Kayıtları</h2>
+            <div class="tools">
+              <label class="sr-only" for="filterCategory">Kategoriye göre filtrele</label>
+              <select id="filterCategory"></select>
+
+              <!-- Liste menüsü: düzenleme modu ve toplu silme. -->
+              <div class="menu-wrap">
+                <button type="button" class="dots" id="listDots" aria-haspopup="menu" aria-expanded="false"
+                        aria-label="Liste menüsü" title="Liste işlemleri">⋯</button>
+
+                <div class="menu" id="listMenu" role="menu" hidden>
+                  <button type="button" role="menuitem" id="toggleEdit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M4 20h4l10-10-4-4L4 16v4z"></path>
+                      <path d="M14 6l4 4"></path>
+                    </svg>
+                    <span id="toggleEditLabel">Düzenleme modu</span>
+                  </button>
+
+                  <div class="menu__sep"></div>
+
+                  <button type="button" role="menuitem" class="is-danger" id="clearAll">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M4 7h16"></path>
+                      <path d="M9 7V5h6v2"></path>
+                      <path d="M6 7l1 13h10l1-13"></path>
+                    </svg>
+                    Tümünü sil
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="list-note" id="listNote" hidden></p>
+
+          <div class="table-wrap" id="tableWrap" hidden>
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Tarih</th>
+                  <th scope="col">Kategori</th>
+                  <th scope="col">Açıklama</th>
+                  <th scope="col" class="c-amount">Tutar</th>
+                  <th scope="col"><span class="sr-only">İşlem</span></th>
+                </tr>
+              </thead>
+              <tbody id="incomeBody"></tbody>   <!-- satırları JavaScript üretir -->
+            </table>
+          </div>
+
+          <!-- Liste boşken görünen kutu. Metni duruma göre JavaScript değiştirir. -->
+          <div class="empty" id="emptyState">
+            <p class="empty__title" id="emptyTitle">Kayıt yok</p>
+            <p class="empty__text" id="emptyText">Kategorilerinizi oluşturun, sonra ilk geliri kaydedin.</p>
+          </div>
+        </section>
+
+        <!-- Pasta grafik. Kayıt yoksa tamamen gizlenir. -->
+        <section class="panel" id="pieCard" hidden>
+          <div class="panel__head">
+            <h2 class="panel__title">Kategori Dağılımı</h2>
+            <span class="cat__count" id="pieNote"></span>
+          </div>
+          <div class="pie-wrap">
+            <div class="pie">
+              <!-- viewBox="0 0 120 120": çizimi 120x120'lik hayali bir kağıda yapıyoruz,
+                   ekranda kaç piksel görüneceğini CSS belirliyor. Böylece grafiği
+                   büyütmek için sadece CSS'teki genişliği değiştirmek yetiyor. -->
+              <svg id="pieSvg" viewBox="0 0 120 120" role="img" aria-label="Kategorilere göre gelir dağılımı"></svg>
+              <div class="pie__center">
+                <p class="pie__center-label" id="pieCenterLabel">Toplam</p>
+                <p class="pie__center-value" id="pieCenterValue">&#8378;0,00</p>
+              </div>
+            </div>
+            <div class="legend" id="pieLegend"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="wrap foot"><p>Veriler yalnızca bu tarayıcının localStorage alanında tutulur.</p></footer>
+
+  <!-- ==========================================================================
+       KUR PENCERESİ
+       Başlangıçta hidden. Sağ üstteki düğmeye basınca JavaScript hidden'ı kaldırır.
+       role="dialog" + aria-modal: ekran okuyucuya "burası bir pencere" der.
+  =========================================================================== -->
+  <div class="overlay" id="fxOverlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="fxTitle">
+      <div class="modal__head">
+        <h2 class="modal__title" id="fxTitle">Para Birimi ve Kurlar</h2>
+        <button type="button" class="modal__close" id="fxClose" aria-label="Pencereyi kapat">&times;</button>
+      </div>
+
+      <div class="modal__section">
+        <p class="modal__section-title">Görüntüleme para birimi</p>
+        <select id="baseCurrency"></select>
+        <p class="hint" style="margin-top:8px">Kartlar, tablo ve grafik bu birime çevrilerek gösterilir.</p>
+      </div>
+
+      <div class="modal__section">
+        <p class="modal__section-title">Kurlar (Türk lirası karşılığı)</p>
+        <div class="rates" id="rateList"></div>   <!-- satırları JavaScript üretir -->
+        <p class="hint" style="margin-top:12px">
+          Kurları siz girersiniz. Bir kayıt eklendiğinde o anki kur kaydın içine yazılır;
+          sonradan kuru değiştirmek geçmiş kayıtları bozmaz.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       YEDEK PENCERESİ
+       Defteri düz metin olarak dışa aktarır ve aynı metinden geri yükler.
+       İki yol da var, çünkü sayfa kısıtlı bir çerçevede açıldığında tarayıcı
+       dosya indirmesini engelleyebiliyor: o zaman metni kopyalayıp bir .txt
+       dosyasına kendiniz yapıştırabilirsiniz.
+  =========================================================================== -->
+  <div class="overlay" id="backupOverlay" hidden>
+    <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="backupTitle">
+      <div class="modal__head">
+        <h2 class="modal__title" id="backupTitle">Yedek Al / Geri Yükle</h2>
+        <button type="button" class="modal__close" id="backupClose" aria-label="Pencereyi kapat">&times;</button>
+      </div>
+
+      <div class="modal__section">
+        <p class="modal__section-title">Defterin metni</p>
+        <!-- Aşağıdaki kutu hem dışa aktarılan metni gösterir hem de içe aktarma
+             için yapıştırma alanıdır. spellcheck kapalı: altı kırmızı çizilmesin. -->
+        <textarea id="backupText" class="code-box" spellcheck="false"
+                  aria-label="Yedek metni"></textarea>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--primary" id="downloadBtn">.txt olarak indir</button>
+          <button type="button" class="btn btn--ghost" id="copyBtn">Panoya kopyala</button>
+          <button type="button" class="btn btn--ghost" id="refreshBackupBtn">Metni tazele</button>
+        </div>
+        <p class="hint" id="backupHint" style="margin-top:10px">
+          Bu metni bir .txt dosyasında saklayın. Geri yüklemek için dosyayı seçin
+          veya içeriğini yukarıdaki kutuya yapıştırıp "Bu metni yükle" deyin.
+        </p>
+      </div>
+
+      <div class="modal__section">
+        <p class="modal__section-title">Geri yükleme</p>
+        <div class="modal__actions">
+          <!-- Dosya seçici. accept: dosya penceresinde .txt dosyalarını öne çıkarır. -->
+          <label class="btn btn--ghost" for="importFile">Dosya seç…</label>
+          <input type="file" id="importFile" accept=".txt,text/plain" hidden>
+          <button type="button" class="btn btn--ghost" id="importTextBtn">Bu metni yükle</button>
+        </div>
+        <p class="error" id="backupError" role="alert" hidden></p>
+        <p class="hint" style="margin-top:10px">
+          Geri yükleme mevcut defterin yerine geçer. Yanlışlıkla yaptıysanız
+          alttaki şeritten "Geri al" ile eski defterinize dönebilirsiniz.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       ONAY PENCERESİ
+       Tarayıcının confirm() kutusu bu sayfa kısıtlı bir çerçevede açıldığında
+       çalışmadığı için onayı kendimiz soruyoruz. Metni JavaScript dolduruyor.
+  =========================================================================== -->
+  <div class="overlay" id="confirmOverlay" hidden>
+    <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+      <div class="modal__head">
+        <h2 class="modal__title" id="confirmTitle">Emin misiniz?</h2>
+      </div>
+      <p class="confirm__text" id="confirmText"></p>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--danger" id="confirmYes">Evet, sil</button>
+        <button type="button" class="btn btn--ghost" id="confirmNo">Vazgeç</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Silme sonrası çıkan geri alma şeridi. -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span class="toast__text" id="toastText"></span>
+    <button type="button" class="toast__btn" id="undoBtn">Geri al</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

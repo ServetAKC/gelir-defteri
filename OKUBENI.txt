@@ -1,0 +1,140 @@
+GELİR DEFTERİ — VERİTABANLI SÜRÜM
+=================================
+Tam özellikli arayüz + PHP + MySQL.
+
+
+ÇALIŞTIRMA
+----------
+BASLAT.bat  ->  çift tıkla (MySQL + Apache + tarayıcı hepsi açılır)
+KAPAT.bat   ->  işin bitince
+
+Uygulama    : http://localhost/gelir-defteri/
+Veritabanı  : http://localhost/phpmyadmin   (gelir_defteri)
+
+
+DOSYALAR
+--------
+kur.sql      Veritabanını kurar (bir kere çalıştırılır)
+baglan.php   Veritabanı bağlantısı
+api.php      Arayüz ile veritabanı arasındaki köprü (13 işlem)
+index.html   Sayfanın iskeleti
+style.css    Görünüm
+app.js       Arayüz mantığı (grafik, form, liste, yedek)
+
+
+NASIL ÇALIŞIYOR (üç katman)
+---------------------------
+
+    TARAYICI                SUNUCU                 VERİTABANI
+    index.html   ---->      api.php      ---->     MySQL
+    app.js       <----   (PHP + PDO)     <----     gelir_defteri
+
+Tarayıcı MySQL'e doğrudan bağlanamaz. Bağlanabilseydi veritabanı şifresini
+JavaScript'in içine yazmak gerekirdi, o da sayfayı açan herkesin şifreyi
+görmesi demek olurdu. Bu yüzden araya PHP giriyor.
+
+Akış her işlemde aynı:
+    1. Kullanıcı bir şey yapar (kayıt ekler)
+    2. app.js api.php'ye istek atar
+    3. api.php veritabanına yazar
+    4. app.js defteri baştan çeker ve ekranı yeniden çizer
+
+Dördüncü adım önemli: ekranı kendi kendimize güncellemiyoruz, her seferinde
+veritabanından taze veriyi alıyoruz. Böylece ekranda görünen şey her zaman
+veritabanındaki şeyle birebir aynı oluyor.
+
+
+VERİTABANI — 4 TABLO
+--------------------
+
+    kullanicilar
+         |
+         |---< kategoriler ---+
+         |                    |
+         |---< kayitlar >-----+
+         |
+         |---< kurlar
+
+kullanicilar : Giriş ekranı henüz yok, uygulama tek kullanıcıyla (id=1)
+               çalışıyor. Tablo yine de var, giriş eklenince hazır.
+kategoriler  : Kullanıcının kendi tanımladığı gelir türleri
+kayitlar     : Asıl veri
+kurlar       : 1 birim kaç TL eder
+
+
+SUNUMDA ANLATILACAKLAR
+----------------------
+
+1. NORMALİZASYON
+   Kayıt, kategorinin adını değil id'sini tutuyor. Ad tek yerde duruyor;
+   değişirse tek satır güncelleniyor, yazım farkından ikiz kategori oluşmuyor.
+
+2. DECIMAL, FLOAT DEĞİL
+   FLOAT ondalıkları yaklaşık saklar (0.1 + 0.2 = 0.30000000000000004).
+   Parada kuruş kayar. DECIMAL(12,2) tam saklar.
+
+3. ÜRETİLMİŞ SÜTUN
+   tutar_try DECIMAL(14,2) AS (tutar * kur) STORED
+   TL karşılığını veritabanı kendisi hesaplıyor, dışarıdan yazılamıyor.
+   Yani tutarla TL karşılığının birbirini tutmaması imkânsız.
+   Denemesi: 120 USD, kur 41 girildi -> tutar_try otomatik 4920.00 oldu.
+
+4. TARİHSEL KUR
+   Kur, işlem anında kaydın içine yazılıyor. Kurlar tablosu güncellense bile
+   geçmiş satışların TL değeri değişmiyor. (Test edildi: USD kuru 41'den
+   42.75'e çıkarıldı, eski kaydın tutar_try değeri 4920 olarak kaldı.)
+
+5. YUMUŞAK SİLME
+   DELETE yerine silinme_zamani = NOW(). Arayüzdeki 8 saniyelik "Geri al"
+   bu alanı tekrar NULL yapıyor. Raporlar "silinme_zamani IS NULL" ile çalışıyor.
+
+6. YABANCI ANAHTAR DAVRANIŞLARI
+   ON DELETE CASCADE : kullanıcı silinirse kategorileri de silinir
+   ON DELETE RESTRICT: içinde kaydı olan kategori silinemez
+   Arayüzdeki "bu kategoride N kayıt var" uyarısı aslında veritabanının
+   verdiği hatanın kullanıcıya çevrilmiş hali.
+
+7. TRANSACTION
+   Yedek geri yükleme defterin tamamını değiştiriyor. beginTransaction /
+   commit / rollBack ile tek parça yapılıyor: araya hata düşerse hiçbiri
+   uygulanmıyor, yarım veri kalmıyor.
+
+8. GÜVENLİK
+   - Prepared statement (soru işaretli sorgular)  -> SQL enjeksiyonu kapalı
+   - Her sorguda kullanici_id koşulu              -> IDOR açığı kapalı
+   - Şifre değil, hash saklanıyor
+   - Arayüzde metinler textContent ile basılıyor  -> XSS kapalı
+
+9. İNDEKSLER
+   (kullanici_id, tarih) : ay şeridi ve özet kartları
+   (kategori_id)         : pasta grafik
+   EXPLAIN ile doğrulanabilir; "type: ALL" çıkarsa indeks kullanılmıyor demektir.
+
+10. GÖRÜNÜMLER (VIEW)
+    v_kategori_dagilimi ve v_aylik_ozet: sık kullanılan iki rapor sorgusu
+    veritabanında kayıtlı duruyor.
+
+
+API İŞLEMLERİ (api.php)
+-----------------------
+getir            Defterin tamamını JSON olarak döner
+kayit-ekle       Yeni gelir kaydı
+kayit-guncelle   Düzenleme modundaki değişiklik
+kayit-sil        Yumuşak silme
+tumunu-sil       Hepsini yumuşak silme (silinen id'leri döner)
+kayit-geri-al    Silinenleri geri getirme
+kategori-ekle    Yeni kategori (aynı ad varsa hata döner)
+kategori-sil     Kategori silme (kaydı varsa veritabanı reddeder)
+kur-guncelle     Kur değiştirme (upsert)
+taban-degistir   Görüntüleme para birimi
+yedek-yukle      .txt yedekten defterin tamamını geri yükleme (transaction)
+
+
+ESKİ SÜRÜMLE FARKI
+------------------
+Önceki sürüm veriyi tarayıcının localStorage alanında tutuyordu:
+tarayıcı temizlenince veri gidiyordu, başka cihazdan görünmüyordu.
+Şimdi veri MySQL'de. Tarayıcı temizlense de duruyor, aynı ağdaki
+başka bir bilgisayardan da erişilebilir.
+
+.txt yedek alma özelliği duruyor; artık veritabanının yedeği olarak çalışıyor.
