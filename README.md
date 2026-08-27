@@ -46,11 +46,21 @@ Gereken: [XAMPP](https://www.apachefriends.org/) (Apache + MySQL + PHP)
    mysql -u root < kur.sql
    ```
 
-4. Aç: <http://localhost/gelir-defteri/>
+4. Ayar dosyasını oluştur — **şifre depoda tutulmaz**:
 
-> `baglan.php` XAMPP'ın varsayılan ayarlarıyla gelir (kullanıcı `root`, şifre boş).
-> Gerçek bir sunucuda bu dosya sürüm kontrolüne girmemeli ve sınırlı yetkili
-> bir veritabanı kullanıcısı tanımlanmalıdır.
+   ```bash
+   copy ayarlar.ornek.php ayarlar.php
+   ```
+
+   `ayarlar.php` içine `kur.sql`'de belirlediğin veritabanı şifresini yaz.
+   Bu dosya `.gitignore` içindedir, depoya gönderilmez.
+
+5. Aç: <http://localhost/gelir-defteri/>
+
+> Uygulama `root` ile değil, yalnızca kendi veritabanında veri okuyup yazabilen
+> `defter_app` kullanıcısıyla bağlanır (en az yetki ilkesi). Şifre koda değil,
+> sürüm kontrolüne girmeyen `ayarlar.php` dosyasına yazılır: depoya giren bir
+> şifre, depo sonradan gizlense bile eski commit'lerde durmaya devam eder.
 
 ---
 
@@ -75,7 +85,8 @@ sunucudan taze alır. Böylece ekranda görünen, veritabanındakiyle her zaman 
 | Dosya | Görevi |
 |---|---|
 | `kur.sql` | Veritabanı şeması, görünümler, başlangıç verisi |
-| `baglan.php` | PDO bağlantısı |
+| `baglan.php` | PDO bağlantısı (ayarları `ayarlar.php`'den okur) |
+| `ayarlar.ornek.php` | Ayar şablonu; kopyalanıp `ayarlar.php` yapılır |
 | `api.php` | 11 işlemlik JSON API |
 | `index.html` | Sayfa iskeleti |
 | `style.css` | Görünüm, temalar, mobil düzen |

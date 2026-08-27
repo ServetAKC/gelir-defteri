@@ -11,3 +11,6 @@ desktop.ini
 
 # Loglar
 *.log
+
+# Gercek ayar dosyasi: sifre icerir, depoya girmez
+ayarlar.php
