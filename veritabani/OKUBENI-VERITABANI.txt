@@ -1,0 +1,124 @@
+GELİR DEFTERİ — VERİTABANI KATMANI
+==================================
+
+DOSYALAR
+--------
+01-sema.sql        Veritabanını sıfırdan kurar (tablolar, ilişkiler, görünümler)
+02-ornek-veri.sql  Denemek için gerçekçi örnek veri
+03-sorgular.sql    Uygulamanın ihtiyaç duyduğu tüm sorgular, açıklamalı
+
+
+NASIL KURULUR
+-------------
+1) MySQL 8 kurulu olmalı (XAMPP / WAMP / Docker / doğrudan kurulum fark etmez).
+2) Komut satırında:
+
+     mysql -u root -p < 01-sema.sql
+     mysql -u root -p < 02-ornek-veri.sql
+
+   phpMyAdmin kullanıyorsanız: "İçe Aktar" sekmesinden aynı dosyaları sırayla
+   yükleyin.
+
+3) Denemek için:
+
+     mysql -u root -p gelir_defteri
+
+   sonra 03-sorgular.sql içindeki sorguları tek tek yapıştırın.
+
+NOT: 01-sema.sql ilk satırında  DROP DATABASE IF EXISTS gelir_defteri  var.
+     Yani her çalıştırdığınızda veritabanını siler ve sıfırdan kurar.
+     Geliştirme sırasında istediğiniz budur; içinde gerçek veri varken
+     ÇALIŞTIRMAYIN.
+
+
+TABLOLAR VE İLİŞKİLER
+---------------------
+
+    kullanicilar
+         |  1
+         |-------------< kategoriler          (bir kullanıcının çok kategorisi)
+         |                    |  1
+         |                    |
+         |-------------< kayitlar             (bir kullanıcının çok kaydı)
+         |                    ^  n            (her kayıt bir kategoriye ait)
+         |
+         |-------------< kurlar               (kullanıcı başına para birimi kuru)
+
+Okunuşu: "bir kullanıcının birçok kategorisi olur, her kategori tek bir
+kullanıcıya aittir." Buna BİRE ÇOK ilişki denir ve veritabanı tasarımının
+temelidir.
+
+
+SUNUMDA SORULABİLECEK SORULAR VE CEVAPLARI
+------------------------------------------
+
+S: Neden kategoriyi ayrı tabloya aldın?
+C: Kategori adını her kayda yazsaydık aynı isim yüzlerce satırda tekrarlardı.
+   Adı düzeltmek için hepsini güncellemek gerekirdi ve yazım farkları yüzünden
+   ("Nakit Satış" / "nakit satis") aynı şey iki kategori gibi görünürdü.
+   Ayrı tabloda ad TEK yerde durur; kayıt sadece numarasını taşır.
+
+S: Neden DECIMAL kullandın, FLOAT değil?
+C: FLOAT ondalıkları yaklaşık saklar, 0.1 + 0.2 = 0.30000000000000004 eder.
+   Para hesabında kuruş kaymasına yol açar. DECIMAL(12,2) tam saklar.
+
+S: tutar_try nedir?
+C: Üretilmiş (generated) sütun: tutar * kur. Veritabanı kendisi hesaplar,
+   dışarıdan yazılamaz. Böylece "tutar ile TL karşılığı birbirini tutmuyor"
+   durumu imkânsız hale gelir. STORED olduğu için indekslenebilir ve
+   raporlarda hızlıdır.
+
+S: Neden kuru her kaydın içinde tutuyorsun, kurlar tablosu zaten var?
+C: Kurlar tablosu BUGÜNKÜ kuru tutar. Kayıt ise geçmişte, o günkü kurdan
+   yapıldı. Kur yarın değişince geçmiş satışın TL değeri değişmemeli, bu yüzden
+   işlem anındaki kur kaydın içine dondurulur. Muhasebede buna tarihsel kur denir.
+
+S: Kayıtları neden gerçekten silmiyorsun?
+C: Arayüzde 8 saniyelik "Geri al" var. Satırı DELETE ile silersek geri
+   getiremeyiz. Bunun yerine silinme_zamani alanını dolduruyoruz (yumuşak
+   silme); geri al işlemi alanı NULL yapıyor. Raporlar da zaten
+   "silinme_zamani IS NULL" koşuluyla çalışıyor.
+
+S: İndeksleri neden bu sütunlara koydun?
+C: İndeks, kitabın arkasındaki dizin gibidir; olmazsa MySQL tüm tabloyu okur.
+   Uygulama en çok "şu kullanıcının şu tarih aralığındaki kayıtları" diye
+   soruyor, bu yüzden (kullanici_id, tarih) ikilisine indeks koydum. Pasta
+   grafik kategoriye göre topladığı için ikinci indeks (kategori_id, tarih).
+   EXPLAIN ile kontrol edilebilir: "type: ALL" çıkıyorsa indeks kullanılmıyor
+   demektir.
+
+S: SQL enjeksiyonuna karşı ne yaptın?
+C: Sunucu kodunda değerler sorgunun içine yapıştırılmıyor; prepared statement
+   ile ? parametresi olarak gönderiliyor. Böylece kullanıcının yazdığı metin
+   hiçbir zaman komut olarak yorumlanmaz. Ayrıca uygulama root ile değil,
+   sadece SELECT/INSERT/UPDATE/DELETE yetkisi olan defter_app kullanıcısıyla
+   bağlanıyor (en az yetki ilkesi).
+
+S: Şifreleri nasıl saklıyorsun?
+C: Şifrenin kendisini hiç saklamıyorum. Geri döndürülemez özetini (hash)
+   saklıyorum: password_hash / bcrypt. Veritabanı çalınsa bile şifreler
+   ele geçmez.
+
+S: Kullanıcı başkasının kaydını görebilir mi?
+C: Hayır. Her sorguda kullanici_id koşulu var. Sadece "WHERE id = ?" yazsaydım
+   kullanıcı numarayı değiştirip başkasının kaydına erişebilirdi (IDOR açığı).
+
+
+MEVCUT VERİYİ TAŞIMA
+--------------------
+Uygulamada zaten .txt yedek özelliği var (menü > Yedek al). O dosya
+"tarih | kategori | tutar | birim | kur | açıklama" satırlarından oluşuyor;
+yani doğrudan INSERT'e çevrilebilir. Sunucu tarafında 20 satırlık bir okuma
+fonksiyonu, mevcut localStorage defterini veritabanına aktarır.
+
+
+SIRADAKİ ADIM
+-------------
+Veritabanı hazır ama arayüz henüz localStorage kullanıyor. Bağlamak için
+aralarına bir SUNUCU (API) gerekiyor; tarayıcı MySQL'e doğrudan bağlanamaz,
+çünkü bağlanabilseydi veritabanı şifresinin sayfa kaynağında görünmesi
+gerekirdi.
+
+İyi haber: uygulamada tüm kayıt işi save() ve load() adlı iki fonksiyondan
+geçiyor. Sunucuya geçerken değişecek yer 1.874 satırlık dosyada sadece
+o iki fonksiyon.
